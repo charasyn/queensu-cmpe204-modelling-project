@@ -158,50 +158,42 @@ def example_theory():
     # Checking that each row and column have the correct number of tents
     # Will need to be changed from exhaustive listing to some adder later
     for i in range(PUZZLE_NUM_ROWS):
-        # 1 tent
-        if r[i][row_hint] == r[i][1]:
-            E.add_constraint((x[i][j] & ~x[i][j+1] & ~x[i][j+2] & ~x[i][j+3] & ~x[i][j+4]) | \
-                             (~x[i][j] & x[i][j+1] & ~x[i][j+2] & ~x[i][j+3] & ~x[i][j+4]) | \
-                             (~x[i][j] & ~x[i][j+1] & x[i][j+2] & ~x[i][j+3] & ~x[i][j+4]) | \
-                             (~x[i][j] & ~x[i][j+1] & ~x[i][j+2] & x[i][j+3] & ~x[i][j+4]) | \
-                             (~x[i][j] & ~x[i][j+1] & ~x[i][j+2] & ~x[i][j+3] & x[i][j+4]))
-        # 2 tents
-        elif r[i][row_hint] == r[i][2]:
-            E.add_constraint((x[i][j] & ~x[i][j+1] & x[i][j+2] & ~x[i][j+3] & ~x[i][j+4]) | \
-                             (x[i][j] & ~x[i][j+1] & ~x[i][j+2] & x[i][j+3] & ~x[i][j+4]) | \
-                             (x[i][j] & ~x[i][j+1] & ~x[i][j+2] & ~x[i][j+3] & x[i][j+4]) | \
-                             (~x[i][j] & x[i][j+1] & ~x[i][j+2] & x[i][j+3] & ~x[i][j+4]) | \
-                             (~x[i][j] & x[i][j+1] & ~x[i][j+2] & ~x[i][j+3] & x[i][j+4]) | \
-                             (~x[i][j] & ~x[i][j+1] & x[i][j+2] & ~x[i][j+3] & x[i][j+4]))
-        # 3 tents
-        elif r[i][row_hint] == r[i][3]:
-            E.add_constraint(x[i][j] & ~x[i][j + 1] & x[i][j + 2] & ~x[i][j + 3] & x[i][j + 4])
         # no tents
-        else:
-            E.add_constraint(~x[i][j] & ~x[i][j + 1] & ~x[i][j + 2] & ~x[i][j + 3] & ~x[i][j + 4])
+        E.add_constraint(iff(r[i][0],  ~x[i][0] & ~x[i][1] & ~x[i][2] & ~x[i][3] & ~x[i][4]))
+        # 1 tent
+        E.add_constraint(iff(r[i][1], ( x[i][0] & ~x[i][1] & ~x[i][2] & ~x[i][3] & ~x[i][4]) | \
+                                      (~x[i][0] &  x[i][1] & ~x[i][2] & ~x[i][3] & ~x[i][4]) | \
+                                      (~x[i][0] & ~x[i][1] &  x[i][2] & ~x[i][3] & ~x[i][4]) | \
+                                      (~x[i][0] & ~x[i][1] & ~x[i][2] &  x[i][3] & ~x[i][4]) | \
+                                      (~x[i][0] & ~x[i][1] & ~x[i][2] & ~x[i][3] &  x[i][4])))
+        # 2 tents
+        E.add_constraint(iff(r[i][2], ( x[i][0] & ~x[i][1] &  x[i][2] & ~x[i][3] & ~x[i][4]) | \
+                                      ( x[i][0] & ~x[i][1] & ~x[i][2] &  x[i][3] & ~x[i][4]) | \
+                                      ( x[i][0] & ~x[i][1] & ~x[i][2] & ~x[i][3] &  x[i][4]) | \
+                                      (~x[i][0] &  x[i][1] & ~x[i][2] &  x[i][3] & ~x[i][4]) | \
+                                      (~x[i][0] &  x[i][1] & ~x[i][2] & ~x[i][3] &  x[i][4]) | \
+                                      (~x[i][0] & ~x[i][1] &  x[i][2] & ~x[i][3] &  x[i][4])))
+        # 3 tents
+        E.add_constraint(iff(r[i][3],   x[i][0] & ~x[i][1] &  x[i][2] & ~x[i][3] &  x[i][4]))
 
     for j in range(PUZZLE_NUM_COLS):
-        # 1 tent
-        if c[j][col_hint] == c[j][1]:
-            E.add_constraint((x[i][j] & ~x[i+1][j] & ~x[i+2][j] & ~x[i+3][j] & ~x[i+4][j]) | \
-                             (~x[i][j] & x[i+1][j] & ~x[i+2][j] & ~x[i+3][j] & ~x[i+4][j]) | \
-                             (~x[i][j] & ~x[i+1][j] & x[i+2][j] & ~x[i+3][j] & ~x[i+4][j]) | \
-                             (~x[i][j] & ~x[i+1][j] & ~x[i+2][j] & x[i+3][j] & ~x[i+4][j]) | \
-                             (~x[i][j] & ~x[i+1][j] & ~x[i+2][j] & ~x[i+3][j] & x[i+4][j]))
-        # 2 tents
-        elif c[j][col_hint] == c[j][2]:
-            E.add_constraint((x[i][j] & ~x[i+1][j] & x[i+2][j] & ~x[i+3][j] & ~x[i+4][j]) | \
-                             (x[i][j] & ~x[i+1][j] & ~x[i+2][j] & x[i+3][j] & ~x[i+4][j]) | \
-                             (x[i][j] & ~x[i+1][j] & ~x[i+2][j] & ~x[i+3][j] & x[i+4][j]) | \
-                             (~x[i][j] & x[i+1][j] & ~x[i+2][j] & x[i+3][j] & ~x[i+4][j]) | \
-                             (~x[i][j] & x[i+1][j] & ~x[i+2][j] & ~x[i+3][j] & x[i+4][j]) | \
-                             (~x[i][j] & ~x[i+1][j] & x[i+2][j] & ~x[i+3][j] & x[i+4][j]))
-        # 3 tents
-        elif c[j][col_hint] == c[j][3]:
-            E.add_constraint(x[i][j] & ~x[i+1][j] & x[i+2][j] & ~x[i+3][j] & x[i+4][j])
         # no tents
-        else:
-            E.add_constraint(~x[i][j] & ~x[i+1][j] & ~x[i+2][j] & ~x[i+3][j] & ~x[i+4][j])
+        E.add_constraint(iff(c[j][0],  ~x[0][j] & ~x[1][j] & ~x[2][j] & ~x[3][j] & ~x[4][j]))
+        # 1 tent
+        E.add_constraint(iff(c[j][1], ( x[0][j] & ~x[1][j] & ~x[2][j] & ~x[3][j] & ~x[4][j]) | \
+                                      (~x[0][j] &  x[1][j] & ~x[2][j] & ~x[3][j] & ~x[4][j]) | \
+                                      (~x[0][j] & ~x[1][j] &  x[2][j] & ~x[3][j] & ~x[4][j]) | \
+                                      (~x[0][j] & ~x[1][j] & ~x[2][j] &  x[3][j] & ~x[4][j]) | \
+                                      (~x[0][j] & ~x[1][j] & ~x[2][j] & ~x[3][j] &  x[4][j])))
+        # 2 tents
+        E.add_constraint(iff(c[j][2], ( x[0][j] & ~x[1][j] &  x[2][j] & ~x[3][j] & ~x[4][j]) | \
+                                      ( x[0][j] & ~x[1][j] & ~x[2][j] &  x[3][j] & ~x[4][j]) | \
+                                      ( x[0][j] & ~x[1][j] & ~x[2][j] & ~x[3][j] &  x[4][j]) | \
+                                      (~x[0][j] &  x[1][j] & ~x[2][j] &  x[3][j] & ~x[4][j]) | \
+                                      (~x[0][j] &  x[1][j] & ~x[2][j] & ~x[3][j] &  x[4][j]) | \
+                                      (~x[0][j] & ~x[1][j] &  x[2][j] & ~x[3][j] &  x[4][j])))
+        # 3 tents
+        E.add_constraint(iff(c[j][3],   x[0][j] & ~x[1][j] &  x[2][j] & ~x[3][j] &  x[4][j]))
 
     return E
 
