@@ -2,6 +2,18 @@
 from nnf import Var
 from lib204 import Encoding
 
+from nnf import NNF
+from nnf.operators import iff
+
+def implication(l, r):
+    return l.negate() | r
+
+def neg(f):
+    return f.negate()
+
+NNF.__invert__ = neg
+NNF.__rshift__ = implication
+
 # We are going to define some non-boolean variables here to represent
 # the puzzle, for ease of setting our constraints later.
 PUZZLE_NUM_ROWS = 5
