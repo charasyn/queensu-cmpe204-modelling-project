@@ -130,4 +130,6 @@ dmypy.json
 
 poetry.lock
 
+# Ignore each user's editor-specific folders
 .vscode/
+.idea/
