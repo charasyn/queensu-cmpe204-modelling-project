@@ -205,14 +205,74 @@ def example_theory():
 
     return E
 
+def get_row_hint(tprops, row):
+    search_str = 'r_{};'.format(row)
+    matching = [prop for prop in tprops if search_str in prop]
+    assert len(matching) == 1, "Solver returned multiple true row hints {}".format(matching)
+    return int(matching[0].replace(search_str,''))
+    
+def get_col_hint(tprops, col):
+    search_str = 'c_{};'.format(col)
+    matching = [prop for prop in tprops if search_str in prop]
+    assert len(matching) == 1, "Solver returned multiple true col hints {}".format(matching)
+    return int(matching[0].replace(search_str,''))
+
+def visualize_solution(soln):
+    true_propositions = [prop for (prop, assignment) in soln.items() if assignment]
+    row_hints = [get_row_hint(true_propositions, row) for row in range(PUZZLE_NUM_ROWS)]
+    col_hints = [get_col_hint(true_propositions, col) for col in range(PUZZLE_NUM_COLS)]
+    print('Row hints:', row_hints)
+    print('Col hints:', col_hints)
+    print('Puzzle grid:')
+    print('+','-' * PUZZLE_NUM_ROWS,'+',sep='')
+    for i in range(PUZZLE_NUM_ROWS):
+        line_join = []
+        for j in range(PUZZLE_NUM_COLS):
+            idx_str = '_{},{}'.format(i,j)
+            t = soln['t'+idx_str]
+            x = soln['x'+idx_str]
+            assert not (t and x), "Tree and tent at same location ({},{}) in solution".format(i,j)
+            char = ' '
+            if t:
+                char = 't'
+            if x:
+                char = 'x'
+            line_join.append(char)
+        print('|',''.join(line_join),'|',sep='')
+    print('+','-' * PUZZLE_NUM_ROWS,'+',sep='')
+
+def build_negated_solution_nnf(soln):
+    nnf = None
+    # Suppose our solution is {a=True, b=False, c=True}.
+    # We could construct ~(a&~b&c), but the NNF library
+    # would then have to perform the negation for us.
+    # We can instead construct something that's already
+    # in NNF, which is equivalent to what the NNF library
+    # would give us: ~a|b|~c
+    for prop,assignment in soln.items():
+        var = Var(prop, true=not assignment)
+        if nnf is None:
+            nnf = var
+        else:
+            nnf |= var
+    return nnf
 
 if __name__ == "__main__":
 
     T = example_theory()
 
     print("\nSatisfiable: %s" % T.is_satisfiable())
-    print("# Solutions: %d" % T.count_solutions())
-    print("   Solution: %s" % T.solve())
+    soln_count = T.count_solutions()
+    print("# Solutions: %d" % soln_count)
+    for i in range(min(10,soln_count)):
+        print("=" * 72)
+        print('Solution', i+1)
+        soln = T.solve()
+        # print("   Solution: %s" % soln)
+        visualize_solution(soln)
+        T.add_constraint(build_negated_solution_nnf(soln))
+    if soln_count > 10:
+        print('Only first 10 solutions were printed...')
 
     # We are (initially) trying to detect if a given puzzle is properly solved.
     # Because of this, we are really only looking to see if the set of constraints
