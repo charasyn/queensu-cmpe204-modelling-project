@@ -28,11 +28,11 @@ class Encoding(object):
         assert isinstance(c, NNF), "Constraints need to be of type NNF"
         self.constraints.append(c)
 
-    @config(sat_backend="kissat")
+    @config(sat_backend="auto")
     def is_satisfiable(self):
         return And(self.constraints).satisfiable()
 
-    @config(sat_backend="kissat")
+    @config(sat_backend="auto")
     def solve(self):
         return And(self.constraints).solve()
 
