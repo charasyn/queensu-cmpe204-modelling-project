@@ -1,6 +1,7 @@
 
 from nnf import Var
 from lib204 import Encoding
+from functools import reduce
 
 from nnf import NNF
 from nnf.operators import iff
@@ -18,15 +19,25 @@ NNF.__rshift__ = implication
 # the puzzle, for ease of setting our constraints later.
 PUZZLE_NUM_ROWS = 5
 PUZZLE_NUM_COLS = 5
+# PUZZLE_GRID_STATE = [
+#     "    t",
+#     "xtx x",
+#     "t    ",
+#     "xt   ",
+#     "   tx",
+# ]
+# PUZZLE_HINT_ROWS = [0,3,0,1,1]
+# PUZZLE_HINT_COLS = [2,0,1,0,2]
+# This is an example which IS NOT a valid puzzle. We need to be able to reject this.
 PUZZLE_GRID_STATE = [
-    "    t",
-    "xtx x",
-    "t    ",
-    "xt   ",
-    "   tx",
+    "  tt ",
+    " t   ",
+    "     ",
+    "   t ",
+    " t   ",
 ]
-PUZZLE_HINT_ROWS = [0,3,0,1,1]
-PUZZLE_HINT_COLS = [2,0,1,0,2]
+PUZZLE_HINT_ROWS = [1,1,2,0,1]
+PUZZLE_HINT_COLS = [1,2,0,1,1]
 
 # The maximum number of tents per row/column is equal to the
 # number of columns/rows in the puzzle, divided by 2 and rounded up.
@@ -104,6 +115,25 @@ c = build_2D_var_array(PUZZLE_NUM_COLS, MAX_TENTS_PER_COL+1, format_string='c_{i
 ###############################################################################
 ## SECONDARY PROPOSITIONS
 # TODO: add the rest of the propositions
+# Adjacency array: A_d_i,j : true iff the tree at location (i,j) is paired with the tent in dir'n d
+#   d ranges from 0-3, and represents [u,d,l,r]
+#   Directions that don't exist are skipped (ex. you can't go up from 0,0) and are set to None in the table.
+DIRECTIONS = [(-1,0),(1,0),(0,-1),(0,1)]
+A = []
+for d,(offset_i,offset_j) in enumerate(DIRECTIONS):
+    array = []
+    for i in range(PUZZLE_NUM_ROWS):
+        row = []
+        for j in range(PUZZLE_NUM_COLS):
+            adj_i, adj_j = offset_i + i, offset_j + j
+            if 0 <= adj_i and adj_i < PUZZLE_NUM_ROWS and 0 <= adj_j and adj_j < PUZZLE_NUM_COLS:
+                row.append(Var('A_{}_{},{}'.format(d,i,j)))
+            else:
+                row.append(None)
+        array.append(row)
+    A.append(array)
+def safe_A(d,i,j):
+    return A[d][i][j] if 0 <= i and i < PUZZLE_NUM_ROWS and 0 <= j and j < PUZZLE_NUM_COLS else None
 
 #
 # Build an example full theory for your setting and return it.
@@ -123,10 +153,12 @@ def example_theory():
                 E.add_constraint(t[i][j] & ~x[i][j])
             elif cell_data == 'x':
                 # Cell is a tent
-                E.add_constraint(~t[i][j] & x[i][j])
+                # E.add_constraint(~t[i][j] & x[i][j])
+                E.add_constraint(~t[i][j])
             else:
                 # Cell is empty
-                E.add_constraint(~t[i][j] & ~x[i][j])
+                # E.add_constraint(~t[i][j] & ~x[i][j])
+                E.add_constraint(~t[i][j])
 
     # Hint constraints for r_i;n and c_j;n
     for i,row_hint in enumerate(PUZZLE_HINT_ROWS):
@@ -195,6 +227,114 @@ def example_theory():
         # 3 tents
         E.add_constraint(iff(c[j][3],   x[0][j] & ~x[1][j] &  x[2][j] & ~x[3][j] &  x[4][j]))
 
+    # Constrain that tents can't be adjacent
+    for i in range(PUZZLE_NUM_ROWS):
+        for j in range(PUZZLE_NUM_COLS):
+            # For each cell in the grid, if there is a tent there, then there can't be one:
+            # to the right, below, or below and to the right.
+            # I.e.
+            # x|1
+            # -+-
+            # 2|3
+            # If x is a tent, then 1,2,3 must not be tents.
+            # We need to be careful to not exceed the bounds of our arrays however.
+            adjacent_cells = []
+            # Check if 1 is in bounds
+            if j < (PUZZLE_NUM_COLS - 1):
+                adjacent_cells.append(x[i][j+1])
+            # Check if 2 is in bounds
+            if i < (PUZZLE_NUM_ROWS - 1):
+                adjacent_cells.append(x[i+1][j])
+            # 3 is in bounds iff both 1 and 2 are in bounds.
+            if len(adjacent_cells) == 2:
+                adjacent_cells.append(x[i+1][j+1])
+            # Reduce adjacent cell list into formula saying that those cells are false
+            # (if we have any adjacent cells)
+            if len(adjacent_cells) > 0:
+                formula = reduce(lambda acc,x: acc & x, (~x for x in adjacent_cells))
+                E.add_constraint(x[i][j] >> formula)
+    # Constrain that tent must be adjacent to tree
+    for i in range(PUZZLE_NUM_ROWS):
+        for j in range(PUZZLE_NUM_COLS):
+            # For each cell in the grid, if there is a tent there, then there must be
+            # a tree adjacent.
+            # I.e.
+            #  |1| 
+            # -+-+-
+            # 3|x|4
+            # -+-+-
+            #  |2| 
+            # If x is a tent, then one (or more) of 1,2,3,4 must be a tree.
+            # We need to be careful to not exceed the bounds of our arrays however.
+            adjacent_cells = []
+            # Check if 1 is in bounds
+            if i > 0:
+                adjacent_cells.append(t[i-1][j])
+            # Check if 2 is in bounds
+            if i < (PUZZLE_NUM_ROWS - 1):
+                adjacent_cells.append(t[i+1][j])
+            # Check if 3 is in bounds
+            if j > 0:
+                adjacent_cells.append(t[i][j-1])
+            # Check if 4 is in bounds
+            if j < (PUZZLE_NUM_COLS - 1):
+                adjacent_cells.append(t[i][j+1])
+            # Reduce adjacent cell list into formula saying that one of those cells is true
+            # (if we have any adjacent cells)
+            if len(adjacent_cells) > 0:
+                formula = reduce(lambda acc,x: acc | x, adjacent_cells)
+                E.add_constraint(x[i][j] >> formula)
+
+    for i in range(PUZZLE_NUM_ROWS):
+        for j in range(PUZZLE_NUM_COLS):
+            # Constrain that if t(i,j) is true, then exactly one of A(d,i,j) must be true for all d
+            # Get all A(d,i,j) that are valid (not out of bounds)
+            adjacency_entries = [A[d][i][j] for d in range(len(DIRECTIONS)) if A[d][i][j] is not None]
+            # Build up (A & ~B & ~C) | (~A & B & ~C) | (~A & ~B & C) expression
+            parts = []
+            for positive_adj in adjacency_entries:
+                # Build individual (A & ~B & ~C) and put it into parts
+                part_formula = positive_adj
+                for other_adj in adjacency_entries:
+                    if other_adj == positive_adj:
+                        continue
+                    part_formula &= ~other_adj
+                parts.append(part_formula)
+            # OR all individual parts together
+            formula = reduce(lambda acc,x: acc | x, parts)
+            E.add_constraint(t[i][j] >> formula)
+
+    for i in range(PUZZLE_NUM_ROWS):
+        for j in range(PUZZLE_NUM_COLS):
+            # Constrain that if x(i,j) is true, then exactly one of the A entries pointing at it must be true
+            # Get all A(d,i,j) that are valid (not out of bounds)
+            adjacency_entries = [safe_A(d,i-oi,j-oj) for d,(oi,oj) in enumerate(DIRECTIONS) if safe_A(d,i-oi,j-oj) is not None]
+            # Build up (A & ~B & ~C) | (~A & B & ~C) | (~A & ~B & C) expression
+            parts = []
+            for positive_adj in adjacency_entries:
+                # Build individual (A & ~B & ~C) and put it into parts
+                part_formula = positive_adj
+                for other_adj in adjacency_entries:
+                    if other_adj == positive_adj:
+                        continue
+                    part_formula &= ~other_adj
+                parts.append(part_formula)
+            # OR all individual parts together
+            formula = reduce(lambda acc,x: acc | x, parts)
+            E.add_constraint(x[i][j] >> formula)
+
+    for i in range(PUZZLE_NUM_ROWS):
+        for j in range(PUZZLE_NUM_COLS):
+            # Constrain that if A(d,i,j) is true, then t(i,j) is true
+            # Constrain that if A(d,i,j) is true, then x((i,j) + dirn) is true
+            for d,(offset_i,offset_j) in enumerate(DIRECTIONS):
+                # Check if grid in this direction exists by checking the A matrix
+                if A[d][i][j] is None:
+                    continue
+                E.add_constraint(A[d][i][j] >> t[i][j])
+                E.add_constraint(A[d][i][j] >> x[i+offset_i][j+offset_j])
+    # for formula in E.constraints:
+    #     print(formula)
     return E
 
 def get_row_hint(tprops, row):
@@ -233,6 +373,52 @@ def visualize_solution(soln):
         print('|',''.join(line_join),'|',sep='')
     print('+','-' * PUZZLE_NUM_ROWS,'+',sep='')
 
+def visualize_solution_svg(soln):
+    svg_scale = 50
+    print(f'<?xml version="1.0" encoding="UTF-8" standalone="no"?>')
+    print(f'<svg xmlns="http://www.w3.org/2000/svg" width="{svg_scale*(2+PUZZLE_NUM_COLS)}" height="{svg_scale*(2+PUZZLE_NUM_ROWS)}" viewBox="-1 -1 {2+PUZZLE_NUM_COLS} {2+PUZZLE_NUM_ROWS}">')
+    print('''
+    <style>
+        .hint_text { font: 0.5px sans-serif; }
+        .rect_grid { fill: none; stroke: #000; stroke-width: 0.1; }
+        .tent { fill: #e11; }
+        .tree { fill: #1e1; }
+        .assoc { fill: none; stroke: #444; stroke-width: 0.03; }
+    </style>
+    ''')
+    true_propositions = [prop for (prop, assignment) in soln.items() if assignment]
+    row_hints = [get_row_hint(true_propositions, row) for row in range(PUZZLE_NUM_ROWS)]
+    col_hints = [get_col_hint(true_propositions, col) for col in range(PUZZLE_NUM_COLS)]
+    for i,h in enumerate(row_hints):
+        print(f'<text class="hint_text" x="-0.5" y="{i+0.5}">{h}</text>')
+    for j,h in enumerate(col_hints):
+        print(f'<text class="hint_text" y="-0.5" x="{j+0.5}">{h}</text>')
+    for i in range(PUZZLE_NUM_ROWS):
+        for j in range(PUZZLE_NUM_COLS):
+            print(f'<rect x="{j}" y="{i}" width="1" height="1" class="rect_grid" />')
+            idx_str = '_{},{}'.format(i,j)
+            t = soln['t'+idx_str]
+            x = soln['x'+idx_str]
+            assert not (t and x), "Tree and tent at same location ({},{}) in solution".format(i,j)
+            char = ' '
+            if t or x:
+                print(f'<rect x="{j+0.2}" y="{i+0.2}" width="0.6" height="0.6" class="{"tent" if x else "tree"}" />')
+            doff = 0.1
+            for d,(x,y,w,h) in enumerate([
+                (0.1,-0.9,0.8,1.8),
+                (0.1,0.1,0.8,1.8),
+                (-0.9,0.1,1.8,0.8),
+                (0.1,0.1,1.8,0.8),
+                ]):
+                a = soln.get(f'A_{d}_{i},{j}', False)
+                if not a:
+                    continue
+                assert t, "T must be true for A to be true"
+                print(f'<rect x="{j+x}" y="{i+y}" width="{w}" height="{h}" class="assoc" />')
+
+
+    print('</svg>')
+
 def build_negated_solution_nnf(soln):
     nnf = None
     # Suppose our solution is {a=True, b=False, c=True}.
@@ -251,17 +437,21 @@ def build_negated_solution_nnf(soln):
 
 if __name__ == "__main__":
 
+    import sys
     T = example_theory()
 
-    print("\nSatisfiable: %s" % T.is_satisfiable())
     soln_count = T.count_solutions()
     print("# Solutions: %d" % soln_count)
     for i in range(min(10,soln_count)):
-        print("=" * 72)
-        print('Solution', i+1)
+        # print("=" * 72)
+        # print('Solution', i+1)
         soln = T.solve()
-        # print("   Solution: %s" % soln)
+        if soln is None:
+            print('Unable to find another solution!')
+            break
         visualize_solution(soln)
+        # print("   Solution: %s" % soln, file=sys.stderr)
+        # visualize_solution_svg(soln)
         T.add_constraint(build_negated_solution_nnf(soln))
     if soln_count > 10:
         print('Only first 10 solutions were printed...')
