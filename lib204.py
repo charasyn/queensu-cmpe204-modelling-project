@@ -1,6 +1,8 @@
 
+from platform import system
 from nnf import And, dsharp, NNF, config
 
+on_linux = system() == 'Linux'
 
 class Encoding(object):
     def __init__(self):
@@ -28,11 +30,11 @@ class Encoding(object):
         assert isinstance(c, NNF), "Constraints need to be of type NNF"
         self.constraints.append(c)
 
-    @config(sat_backend="auto")
+    @config(sat_backend="kissat" if on_linux else "auto")
     def is_satisfiable(self):
         return And(self.constraints).satisfiable()
 
-    @config(sat_backend="auto")
+    @config(sat_backend="kissat" if on_linux else "auto")
     def solve(self):
         return And(self.constraints).solve()
 
