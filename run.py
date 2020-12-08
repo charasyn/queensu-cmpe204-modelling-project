@@ -34,7 +34,7 @@ class TentsAndTreesTheory:
         num_cols: the number of columns in this array
 
         format_string: a string defining the name of each variable, where
-        \{i\} and \{j\} will be replaced with the row and column number respectively
+        {i} and {j} will be replaced with the row and column number respectively
 
         Outputs:
 
@@ -543,12 +543,12 @@ def main(arguments=None):
     parser.add_argument('-q', '--quiet', action='store_true', help='print less output')
     parser.add_argument('-t', '--print-theory', action='store_true', help='print all constraints in the theory')
     parser.add_argument('-s', '--print-raw-solution', action='store_true', help='print all variables in each solution (raw output from dsharp)')
-    parser.add_argument('--mode', default='solve', help='select one mode of: solve, generate')
+    parser.add_argument('--mode', default='solve', help='select one mode of: verify, solve, generate (default: solve)')
     parser.add_argument('--input-json', metavar='<puzzle.json>', help='specify a .json file to load the puzzle from, instead of using the default built-in puzzle')
     parser.add_argument('--output-html', metavar='<puzzle.html>', help='specify an .html output file to print a nicer version to')
     parser.add_argument('--size', default='5x5', help='specify size of generated puzzle')
     parser.add_argument('--seed', help='specify starting seed of generated puzzle (default: random)')
-    parser.add_argument('--output-json', metavar='<puzzle.json>', help='specify a .json file to save the generated puzzle to')
+    parser.add_argument('--output-json', metavar='<puzzle.json>', help='specify a .json file to save the generated puzzle (or first solution) to')
     
     if arguments:
         config = parser.parse_args(arguments)
@@ -560,12 +560,13 @@ def main(arguments=None):
     quiet = config.quiet
     print_theory = config.print_theory
     print_raw_solution = config.print_raw_solution
+    verify = config.mode == 'verify'
     solve = config.mode == 'solve'
     generate = config.mode == 'generate'
     generate_size = tuple(int(n) for n in config.size.split('x'))
     generate_seed = config.seed
 
-    if solve:
+    if verify or solve:
         PUZZLE_NUM_ROWS = 5
         PUZZLE_NUM_COLS = 5
         PUZZLE_GRID_STATE = [
@@ -601,6 +602,12 @@ def main(arguments=None):
         Tclass = TentsAndTreesTheory(size=(PUZZLE_NUM_ROWS,PUZZLE_NUM_COLS))
         Tclass.build_board_hint_constraints(PUZZLE_HINT_ROWS,PUZZLE_HINT_COLS)
         Tclass.build_board_tree_constraints(PUZZLE_GRID_STATE)
+        # If we're solving the board, we ignore any possible tent placements,
+        # as the solver will determine them for us.
+        # If we're verifying however, we want to be sure that the tent placements
+        # we have are correct, so we need to build those constraints as well.
+        if verify:
+            Tclass.build_board_tent_constraints(PUZZLE_GRID_STATE)
 
         if do_html:
             html_file = open(do_html, 'w')
@@ -650,6 +657,8 @@ def main(arguments=None):
                         print(f'<li>{prop}: {assign}</li>', file=html_file)
                     print('</ul>', file=html_file)
                 solnclass.visualize_solution_svg(html_file)
+            if i == 0 and do_json_output:
+                solnclass.to_json(do_json_output)
             Tclass.theory.add_constraint(solnclass.build_negated_solution_nnf())
         if soln_count > 10:
             if not quiet:
@@ -729,4 +738,5 @@ def main(arguments=None):
 
 
 if __name__ == "__main__":
+    import sys
     sys.exit(main())
