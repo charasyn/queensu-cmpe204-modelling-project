@@ -16,8 +16,9 @@ def test_theory():
     assert not T.negate().valid(), "Theory is inconsistent (no solutions exist). Something is likely wrong with the constraints."
 
 def file_checks(stage):
+    stage_nice = stage.title()
     proofs_jp = os.path.isfile(os.path.join('.','documents',stage,'proofs.jp'))
-    modelling_report_docx = os.path.isfile(os.path.join('.','documents',stage,'modelling_report.docx'))
+    modelling_report_docx = os.path.isfile(os.path.join('.','documents',stage,'CMPE204 - Modelling Report %s.docx' % stage_nice))
     modelling_report_pptx = os.path.isfile(os.path.join('.','documents',stage,'modelling_report.pptx'))
     report_txt = os.path.isfile(os.path.join('.','documents',stage,'report.txt'))
     report_pdf = os.path.isfile(os.path.join('.','documents',stage,'report.pdf'))

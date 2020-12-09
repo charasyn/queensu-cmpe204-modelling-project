@@ -1,13 +1,17 @@
+#!/usr/bin/env python3
+# run.py - CMPE204 Group 24 Tents and Trees Project
+# Fall 2020
 
-from nnf import Var
-from lib204 import Encoding
+import sys
+import argparse
+import json
 from functools import reduce
 from random import random, seed
-
-from dictattraccess import DictAttrAccess
-
+from nnf import Var
 from nnf import NNF
 from nnf.operators import iff
+from lib204 import Encoding
+from dictattraccess import DictAttrAccess
 
 def implication(l, r):
     return l.negate() | r
@@ -17,7 +21,6 @@ def neg(f):
 
 NNF.__invert__ = neg
 NNF.__rshift__ = implication
-
 
 class TentsAndTreesTheory:
     DIRECTIONS = [(-1,0),(1,0),(0,-1),(0,1)]
@@ -51,9 +54,9 @@ class TentsAndTreesTheory:
     @staticmethod
     def generate_random_trees(size=(5,5), density=0.3):
         trees = []
-        for i in range(size[0]):
+        for _ in range(size[0]):
             line_join = []
-            for j in range(size[1]):
+            for _ in range(size[1]):
                 line_join.append('t' if random() < density else ' ')
             trees.append(''.join(line_join))
         return trees
@@ -116,7 +119,7 @@ class TentsAndTreesTheory:
                 row = []
                 for j in range(self.num_cols):
                     adj_i, adj_j = offset_i + i, offset_j + j
-                    if 0 <= adj_i and adj_i < self.num_rows and 0 <= adj_j and adj_j < self.num_cols:
+                    if 0 <= adj_i < self.num_rows and 0 <= adj_j < self.num_cols:
                         row.append(Var('A_{}_{},{}'.format(d,i,j)))
                     else:
                         row.append(None)
@@ -125,24 +128,21 @@ class TentsAndTreesTheory:
         self.props.A = A
 
     def safe_A(self, d, i, j):
-        return self.props.A[d][i][j] if 0 <= i and i < self.num_rows and 0 <= j and j < self.num_cols else None
+        return self.props.A[d][i][j] if 0 <= i < self.num_rows and 0 <= j < self.num_cols else None
 
     ### Build constraints for the theory
     def verify_puzzle_hint_format(self, puzzle_hint_rows, puzzle_hint_cols):
         # Verify hint dimensions and data
         assert len(puzzle_hint_rows) == self.num_rows, "Puzzle row hints do not match given number of rows"
         for i,row_hint in enumerate(puzzle_hint_rows):
-            assert 0 <= row_hint and row_hint <= self.max_tents_per_row, f"Row {i} has invalid hint {row_hint}, must be from 0 to {self.max_tents_per_row}"
+            assert 0 <= row_hint <= self.max_tents_per_row, f"Row {i} has invalid hint {row_hint}, must be from 0 to {self.max_tents_per_row}"
         for j,col_hint in enumerate(puzzle_hint_cols):
-            assert 0 <= col_hint and col_hint <= self.max_tents_per_col, f"Column {j} has invalid hint {col_hint}, must be from 0 to {self.max_tents_per_col}"
+            assert 0 <= col_hint <= self.max_tents_per_col, f"Column {j} has invalid hint {col_hint}, must be from 0 to {self.max_tents_per_col}"
 
     def build_board_hint_constraints(self, puzzle_hint_rows, puzzle_hint_cols):
         E = self.theory
-        t = self.props.t
-        x = self.props.x
         r = self.props.r
         c = self.props.c
-        A = self.props.A
 
         # Ensure the data we were given is valid
         self.verify_puzzle_hint_format(puzzle_hint_rows, puzzle_hint_cols)
@@ -177,10 +177,6 @@ class TentsAndTreesTheory:
     def build_board_tree_constraints(self, puzzle_grid_state):
         E = self.theory
         t = self.props.t
-        x = self.props.x
-        r = self.props.r
-        c = self.props.c
-        A = self.props.A
 
         # Ensure the data we were given is valid
         self.verify_puzzle_grid_state_format(puzzle_grid_state)
@@ -197,11 +193,7 @@ class TentsAndTreesTheory:
 
     def build_board_tent_constraints(self, puzzle_grid_state):
         E = self.theory
-        t = self.props.t
         x = self.props.x
-        r = self.props.r
-        c = self.props.c
-        A = self.props.A
 
         # Ensure the data we were given is valid
         self.verify_puzzle_grid_state_format(puzzle_grid_state)
@@ -381,7 +373,6 @@ class TentsAndTreesTheory:
                     E.add_constraint(A[d][i][j] >> t[i][j])
                     ### Constrain that if A(d,i,j) is true, then x((i,j) + dirn) is true
                     E.add_constraint(A[d][i][j] >> x[i+offset_i][j+offset_j])
-        self.theory = E
 
 class TentsAndTreesTheorySolution:
     @staticmethod
@@ -520,7 +511,6 @@ class TentsAndTreesTheorySolution:
                     self.adjacency_state[d][i][j] = False
     
     def to_json(self, json_filename):
-        import json
         json_obj = {
             'rows': self.theory_obj.num_rows,
             'cols': self.theory_obj.num_cols,
@@ -531,13 +521,48 @@ class TentsAndTreesTheorySolution:
         with open(json_filename, 'w') as f:
             json.dump(json_obj, f, sort_keys=True, indent=4)
 
+def example_board():
+    PUZZLE_NUM_ROWS = 5
+    PUZZLE_NUM_COLS = 5
+    # This is an example which IS NOT a valid puzzle. We need to be able to reject this.
+    # PUZZLE_GRID_STATE = [
+    #     "  tt ",
+    #     " t   ",
+    #     "     ",
+    #     "   t ",
+    #     " t   ",
+    # ]
+    # PUZZLE_HINT_ROWS = [1,1,2,0,1]
+    # PUZZLE_HINT_COLS = [1,2,0,1,1]
+    PUZZLE_GRID_STATE = [
+        "    t",
+        "xtx x",
+        "t    ",
+        "xt   ",
+        "   tx",
+    ]
+    PUZZLE_HINT_ROWS = [0,3,0,1,1]
+    PUZZLE_HINT_COLS = [2,0,1,0,2]
+
+    board = {}
+    board['rows'] = PUZZLE_NUM_ROWS
+    board['cols'] = PUZZLE_NUM_COLS
+    board['row_hints'] = PUZZLE_HINT_ROWS
+    board['col_hints'] = PUZZLE_HINT_COLS
+    board['grid_state'] = PUZZLE_GRID_STATE
+    return board
+
+def example_theory():
+    board = example_board()
+    Tclass = TentsAndTreesTheory(size=(board['rows'],board['cols']))
+    Tclass.build_board_hint_constraints(board['row_hints'],board['col_hints'])
+    Tclass.build_board_tree_constraints(board['grid_state'])
+    Tclass.build_board_tent_constraints(board['grid_state'])
+    return Tclass.theory
+
 def main(arguments=None):
-    import sys
-    import argparse
 
     # arguments = ['--output-html','test.html']
-
-    global config
 
     parser = argparse.ArgumentParser(description='Work with the group 24 Tents and Trees model.')
     parser.add_argument('-q', '--quiet', action='store_true', help='print less output')
@@ -555,7 +580,7 @@ def main(arguments=None):
     else:
         config = parser.parse_args()
     do_html = config.output_html
-    do_json = config.input_json
+    do_json_input = config.input_json
     do_json_output = config.output_json
     quiet = config.quiet
     print_theory = config.print_theory
@@ -567,47 +592,21 @@ def main(arguments=None):
     generate_seed = config.seed
 
     if verify or solve:
-        PUZZLE_NUM_ROWS = 5
-        PUZZLE_NUM_COLS = 5
-        PUZZLE_GRID_STATE = [
-            "    t",
-            "xtx x",
-            "t    ",
-            "xt   ",
-            "   tx",
-        ]
-        PUZZLE_HINT_ROWS = [0,3,0,1,1]
-        PUZZLE_HINT_COLS = [2,0,1,0,2]
-        # This is an example which IS NOT a valid puzzle. We need to be able to reject this.
-        # PUZZLE_GRID_STATE = [
-        #     "  tt ",
-        #     " t   ",
-        #     "     ",
-        #     "   t ",
-        #     " t   ",
-        # ]
-        # PUZZLE_HINT_ROWS = [1,1,2,0,1]
-        # PUZZLE_HINT_COLS = [1,2,0,1,1]
-        if do_json:
-            import json
-            jsondata = None
-            with open(do_json, 'r') as f:
-                jsondata = json.load(f)
-            PUZZLE_NUM_ROWS = jsondata['rows']
-            PUZZLE_NUM_COLS = jsondata['cols']
-            PUZZLE_HINT_ROWS = jsondata['row_hints']
-            PUZZLE_HINT_COLS = jsondata['col_hints']
-            PUZZLE_GRID_STATE = jsondata['grid_state']
+        if do_json_input:
+            with open(do_json_input, 'r') as f:
+                board = json.load(f)
+        else:
+            board = example_board()
 
-        Tclass = TentsAndTreesTheory(size=(PUZZLE_NUM_ROWS,PUZZLE_NUM_COLS))
-        Tclass.build_board_hint_constraints(PUZZLE_HINT_ROWS,PUZZLE_HINT_COLS)
-        Tclass.build_board_tree_constraints(PUZZLE_GRID_STATE)
+        Tclass = TentsAndTreesTheory(size=(board['rows'],board['cols']))
+        Tclass.build_board_hint_constraints(board['row_hints'],board['col_hints'])
+        Tclass.build_board_tree_constraints(board['grid_state'])
         # If we're solving the board, we ignore any possible tent placements,
         # as the solver will determine them for us.
         # If we're verifying however, we want to be sure that the tent placements
         # we have are correct, so we need to build those constraints as well.
         if verify:
-            Tclass.build_board_tent_constraints(PUZZLE_GRID_STATE)
+            Tclass.build_board_tent_constraints(board['grid_state'])
 
         if do_html:
             html_file = open(do_html, 'w')
@@ -657,6 +656,7 @@ def main(arguments=None):
                         print(f'<li>{prop}: {assign}</li>', file=html_file)
                     print('</ul>', file=html_file)
                 solnclass.visualize_solution_svg(html_file)
+            # Only put the first solution determined into the .JSON file
             if i == 0 and do_json_output:
                 solnclass.to_json(do_json_output)
             Tclass.theory.add_constraint(solnclass.build_negated_solution_nnf())
@@ -738,5 +738,4 @@ def main(arguments=None):
 
 
 if __name__ == "__main__":
-    import sys
     sys.exit(main())
