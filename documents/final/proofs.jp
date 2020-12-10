@@ -1,0 +1,40 @@
+CONJECTUREPANEL Conjectures
+PROOF "¬A, A∨B ⊢ B"
+INFER ¬A,
+     A∨B 
+     ⊢ B 
+FORMULAE
+0 B,
+1 ⊥,
+2 ¬A,
+3 A,
+4 A∨B 
+IS
+SEQ ("∨ elim"[A,B,C\3,0,0]) (hyp[A\4]) (cut[B,C\1,0]) ("¬ elim"[B\3]) (hyp[A\3]) (hyp[A\2]) ("contra (constructive)"[B\0]) (hyp[A\1]) (hyp[A\0])
+END
+CONJECTUREPANEL Conjectures
+PROOF "Te11∨Te13, Te11∨Te31, Te23∨Te32, Te13→¬Te23, Te31→¬Te32 ⊢ Te11"
+INFER Te11∨Te13,
+     Te11∨Te31,
+     Te23∨Te32,
+     Te13→¬Te23,
+     Te31→¬Te32 
+     ⊢ Te11 
+FORMULAE
+0 ⊥,
+1 ¬Te32,
+2 Te32,
+3 ¬Te23,
+4 Te23,
+5 Te23∨Te32,
+6 Te31,
+7 Te31→¬Te32,
+8 Te11,
+9 Te13,
+10 Te13→¬Te23,
+11 Te11∨Te13,
+12 ¬Te11,
+13 Te11∨Te31 
+IS
+SEQ ("contra (classical)"[A\8]) (cut[B,C\9,0]) ("¬A, A∨B ⊢ B"[A,B\8,9]) (cut[B,C\3,0]) ("→ elim"[A,B\9,3]) (hyp[A\10]) (hyp[A\9]) (cut[B,C\6,0]) ("¬A, A∨B ⊢ B"[A,B\8,6]) (cut[B,C\1,0]) ("→ elim"[A,B\6,1]) (hyp[A\7]) (hyp[A\6]) ("∨ elim"[A,B,C\4,2,0]) (hyp[A\5]) (cut[B,C\0,0]) ("¬ elim"[B\4]) (hyp[A\4]) (hyp[A\3]) (hyp[A\0]) (cut[B,C\0,0]) ("¬ elim"[B\2]) (hyp[A\2]) (hyp[A\1]) (hyp[A\0])
+END
